@@ -41,28 +41,17 @@ public class EventHandler implements Listener {
 		if (e.getSource() instanceof CCActivityClient) {
 			Socket socket = CCActivityClient.getClient().getSocket();
 			(CCActivityClient.getClient().getGUI()).setConnected(!socket.isClosed());
-		} else if (e.getActionCommand() != null) {
+		} 
+		else if (e.getActionCommand() != null) {
 			String command = e.getActionCommand();
-			if (command.equals("textfield"))
-				{
+			if (command.equals("textfield") || command.equals("textfieldjson")){
 				List<String> lines = CCActivityClient.getClient().getGUI().getSelect();
+				lines.add("json_request=yes");
+				lines.add("request_data_end");
 				CCActivityClient.getClient().sendToServerDBRequest(lines.toArray(new String[lines.size()]));
-//				String text = ((JTextField) e.getSource()).getText();
-//				if (text.equals("END"))
-//					{
-//					lines.add("request_data_end");
-//					CCActivityClient.getClient().sendToServerDBRequest(lines.toArray(new String[lines.size()]));
-//					lines = new ArrayList<>();
-//					}
-//				else
-//					{
-//					if (lines == null)
-//						lines = new ArrayList<>();
-//					lines.add(text);
-//					}
-//				((JTextField) e.getSource()).setText("");
-				}
-		} else
+			}
+		}
+		else
 			System.err.println("Source = " + e.getSource());
 	}
 
