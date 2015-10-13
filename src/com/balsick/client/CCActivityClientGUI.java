@@ -73,8 +73,9 @@ public class CCActivityClientGUI implements MouseListener, ActionListener {
 		led.setText("!!LED!!\t\t"+diff+"ms");
 		JPanel panel = (JPanel) getComponent("table_destination");
 		HashMap<Integer, EBTableRow> rows = new HashMap<>();
-		for (Integer index : result.getRows().keySet()) {
-			rows.put(index, new EBTableRow(result.getRows().get(index).getValues()));
+		for (Object index : result.getRows().keySet()) {
+			Integer i = Integer.parseInt(index+"");
+			rows.put(i, new EBTableRow(result.getRows().get(index).getValues()));
 		}
 		EBTable table = new EBTable(result.getColumns(), rows);
 		panel.removeAll();
@@ -159,7 +160,7 @@ public class CCActivityClientGUI implements MouseListener, ActionListener {
 		tablelabel.setForeground(Color.white);
 		area.add(tablelabel, gbc);
 		gbc.gridx++;
-		JTextField table = new JTextField("card_activity");
+		JTextField table = new JTextField("card_movements");
 		table.setEditable(false);
 		gbc.weightx = 6;
 		table.setFont(font);
@@ -271,7 +272,6 @@ public class CCActivityClientGUI implements MouseListener, ActionListener {
 		c = (JTextField)getComponent("orderby_textfield");
 		if (c.getText().length()>0)
 			lines.add("orderby={"+c.getText()+"}");
-		lines.add("request_data_end");
 		return lines;
 	}
 	

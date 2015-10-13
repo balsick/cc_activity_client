@@ -15,6 +15,7 @@ import javax.swing.Timer;
 import com.balsick.controllers.EventHandler;
 import com.balsick.controllers.Listener;
 import com.balsick.tools.communication.ClientServerDBResult;
+import com.balsick.tools.communication.JSonParser;
 
 public class CCActivityClient {
 	
@@ -84,7 +85,15 @@ public class CCActivityClient {
 	private void receiveDBResult() {
 		try {
 			ObjectInputStream objectInputStream = new ObjectInputStream(socket.getInputStream());
-			ClientServerDBResult deserializedResult = (ClientServerDBResult)objectInputStream.readObject();
+			Object readObject = objectInputStream.readObject();
+			ClientServerDBResult deserializedResult = null;
+			if (readObject instanceof ClientServerDBResult) {
+				deserializedResult = (ClientServerDBResult)readObject;
+			}
+			else if (readObject instanceof String) {
+				Object obj = JSonParser.revertJSon(((String)readObject).substring(1, ((String)readObject).length()-1));
+				deserializedResult = (ClientServerDBResult)obj;
+			}
 			
 			decodeServerResponse(deserializedResult);
 		} catch (Exception ex) {
@@ -159,7 +168,7 @@ public class CCActivityClient {
 			}*/
 			CCActivityClient client = CCActivityClient.getClient();
 			client.start();
-			Socket clientSocket = new Socket(serverAddress, 5432);
+			Socket clientSocket = new Socket("localhost", 5432);
 //			clientSocket.setKeepAlive(true);
 			client.setSocket(clientSocket);
 		} catch (Exception ex) {
