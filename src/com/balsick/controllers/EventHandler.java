@@ -6,16 +6,16 @@ import java.awt.event.MouseEvent;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
-
-import javax.swing.JTextField;
+import java.util.function.Consumer;
 
 import com.balsick.client.CCActivityClient;
 
-public class EventHandler implements Listener {
+public class EventHandler implements Consumer<Object> {
 	
 	public static List<String> lines;
-	
-	public void handleEvent(Object e) {
+
+	@Override
+	public void accept(Object e) {
 		if (e instanceof MouseEvent)
 			this.handleEvent((MouseEvent) e);
 		else if (e instanceof ActionEvent)
@@ -48,7 +48,17 @@ public class EventHandler implements Listener {
 				List<String> lines = CCActivityClient.getClient().getGUI().getSelect();
 				lines.add("json_request=yes");
 				lines.add("request_data_end");
-				CCActivityClient.getClient().sendToServerDBRequest(lines.toArray(new String[lines.size()]));
+				CCActivityClient.getClient().sendToServerDBRequest(lines);
+			}
+			if (command.equals("scanfortables")) {
+				List<String> lines = new ArrayList<>();
+				lines.add("request_data_start");
+				lines.add("columns={table_name}");
+				lines.add("tables={information_schema.tables}");
+				lines.add("criteria={table_type='BASE TABLE'}");
+				lines.add("json_request=yes");
+				lines.add("request_data_end");
+				CCActivityClient.getClient().sendToServerDBRequest(lines, e.getSource());
 			}
 		}
 		else

@@ -15,23 +15,27 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.function.Consumer;
 
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
+import javax.swing.JTextPane;
 
+import com.balsick.components.BondedValuesChooser;
 import com.balsick.components.ClickableLabel;
 import com.balsick.components.EBTable;
 import com.balsick.components.EBTableRow;
-import com.balsick.controllers.EBAction;
-import com.balsick.controllers.Listener;
+import com.balsick.components.ServerModelDependant;
 import com.balsick.tools.communication.ClientServerDBResult;
+import com.balsick.tools.communication.ClientServerMessageResult;
+import com.balsick.tools.communication.ClientServerResult;
 import com.balsick.tools.utils.EBColor;
 
 public class CCActivityClientGUI implements MouseListener, ActionListener {
 
 	private static JPanel panel;
-	private List<Listener> listeners;
+	private List<Consumer<Object>> listeners;
 	private HashMap<String, Component> componentsMap;
 	
 	private Date sentAt;
@@ -66,20 +70,37 @@ public class CCActivityClientGUI implements MouseListener, ActionListener {
 		return componentsMap.get(name);
 	}
 	
-	public void update(ClientServerDBResult result) {
+	public void update(ClientServerResult result, Object caller) {
+		if (caller == null) {
+			update(result);
+			return;
+		}
+		// this is a system call
+		if (caller instanceof ServerModelDependant)
+			((ServerModelDependant)caller).deliverResult(result);
+	}
+	
+	public void update(ClientServerResult result) {
 		Date received = new Date();
 		Long diff = received.getTime() - sentAt.getTime();
 		JLabel led = (JLabel)getComponent("connection_status");
 		led.setText("!!LED!!\t\t"+diff+"ms");
 		JPanel panel = (JPanel) getComponent("table_destination");
-		HashMap<Integer, EBTableRow> rows = new HashMap<>();
-		for (Object index : result.getRows().keySet()) {
-			Integer i = Integer.parseInt(index+"");
-			rows.put(i, new EBTableRow(result.getRows().get(index).getValues()));
-		}
-		EBTable table = new EBTable(result.getColumns(), rows);
 		panel.removeAll();
-		panel.add(table.resetPanel(), BorderLayout.CENTER);
+		if (result instanceof ClientServerDBResult) {
+			HashMap<Integer, EBTableRow> rows = new HashMap<>();
+			for (Object index : ((ClientServerDBResult)result).getRows().keySet()) {
+				Integer i = Integer.parseInt(index+"");
+				rows.put(i, new EBTableRow(((ClientServerDBResult)result).getRows().get(index).getValues()));
+			}
+			EBTable table = new EBTable(((ClientServerDBResult)result).getColumns(), rows);
+			panel.add(table.resetPanel(), BorderLayout.CENTER);
+		}
+		else if (result instanceof ClientServerMessageResult) {
+			JTextPane message = new JTextPane();
+			message.setText(((ClientServerMessageResult)result).getMessage());
+			panel.add(message, BorderLayout.CENTER);
+		}
 		panel.repaint();
 		panel.validate();
 	}
@@ -160,16 +181,33 @@ public class CCActivityClientGUI implements MouseListener, ActionListener {
 		tablelabel.setForeground(Color.white);
 		area.add(tablelabel, gbc);
 		gbc.gridx++;
-		JTextField table = new JTextField("card_movements");
-		table.setEditable(false);
+		BondedValuesChooser table = new BondedValuesChooser("scanfortables");
 		gbc.weightx = 6;
-		table.setFont(font);
-		table.setActionCommand("textfield");
 		table.addActionListener(this);
 		componentsMap.put("table_textfield", table);
 		area.add(table, gbc);
 		gbc.gridx = 0;
 		gbc.weightx = 0;
+//		JTextField table = new JTextField("card_activity");
+//		table.setEditable(false);
+//		gbc.weightx = 6;
+//		table.setFont(font);
+//		table.setActionCommand("textfield");
+//		table.addActionListener(this);
+//		componentsMap.put("table_textfield", table);
+//		area.add(table, gbc);
+//		gbc.gridx++;
+//		ClickableLabel scanForTables = new ClickableLabel("scan");
+//		scanForTables.setAction(new EBAction() {
+//			@Override
+//			public void action() {
+//				ActionEvent e = new ActionEvent(this, -1, "scanfortables");
+//				handleEvent(e);
+//			}
+//		});
+//		area.add(scanForTables, gbc);
+//		gbc.gridx = 0;
+//		gbc.weightx = 0;
 		
 		JLabel columnslabel = new JLabel("Colonne");
 		columnslabel.setFont(font);
@@ -227,20 +265,21 @@ public class CCActivityClientGUI implements MouseListener, ActionListener {
 		area.add(orderby, gbc);
 		gbc.gridx = 0;
 		gbc.gridwidth = GridBagConstraints.REMAINDER;
-		ClickableLabel submit = new ClickableLabel("SELECT!", EBColor.main, Color.white, new EBAction() {
-			@Override
-			public void action() {
+		ClickableLabel submit = new ClickableLabel(
+				"SELECT!", 
+				EBColor.main, Color.white,
+				()-> {
 				ActionEvent e = new ActionEvent(this, -1, "textfield");
 				handleEvent(e);
 			}
-		});
+		);
 		submit.setFont(font.deriveFont(Font.BOLD));
 		gbc.fill = GridBagConstraints.VERTICAL;
 		area.add(submit, gbc);
 		return area;
 	}
 	
-	public void addListener(Listener listener) {
+	public void addListener(Consumer<Object> listener) {
 		if (listeners == null)
 			listeners = new ArrayList<>();
 		listeners.add(listener);
@@ -248,19 +287,22 @@ public class CCActivityClientGUI implements MouseListener, ActionListener {
 
 	private void handleEvent(Object e) {
 		if (listeners != null)
-			for (Listener listener : listeners) {
+			for (Consumer<Object> listener : listeners) {
 				sentAt = new Date();
-				listener.handleEvent(e);
+				listener.accept(e);
 			}
 	}
 	
 	public List<String> getSelect() {
 		List<String> lines = new ArrayList<>();
 		lines.add("request_data_start");
-		JTextField c = (JTextField)getComponent("table_textfield");
+		BondedValuesChooser tables = (BondedValuesChooser) getComponent("table_textfield");
+		if (tables.getChoice().length() > 0)
+			lines.add("tables="+tables.getChoice());
+		JTextField c = /*(JTextField)getComponent("table_textfield");
 		if (c.getText().length()>0)
-			lines.add("table="+c.getText());
-		c = (JTextField)getComponent("criteria_textfield");
+			lines.add("tables="+c.getText());
+		c =*/ (JTextField)getComponent("criteria_textfield");
 		if (c.getText().length()>0)
 			lines.add("criteria={"+c.getText()+"}");
 		c = (JTextField)getComponent("columns_textfield");

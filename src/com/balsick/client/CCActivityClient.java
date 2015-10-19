@@ -1,20 +1,20 @@
 package com.balsick.client;
 
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.List;
+import java.util.function.Consumer;
 
 import javax.swing.JFrame;
 import javax.swing.Timer;
 
 import com.balsick.controllers.EventHandler;
-import com.balsick.controllers.Listener;
 import com.balsick.tools.communication.ClientServerDBResult;
+import com.balsick.tools.communication.ClientServerResult;
 import com.balsick.tools.communication.JSonParser;
 
 public class CCActivityClient {
@@ -22,7 +22,7 @@ public class CCActivityClient {
 	CCActivityClientGUI gui;
 	Socket socket;
 	BufferedReader in;
-	private Listener eventHandler;
+	private Consumer<Object> eventHandler;
 	private Timer timer;
 	final static private int serverPort = 5432;
 	final static private String serverAddress = "212.47.246.70";//"2001:b07:aaa:59b5:d454:621c:4571:5a90";
@@ -33,13 +33,11 @@ public class CCActivityClient {
 		eventHandler = new EventHandler();
 		gui = new CCActivityClientGUI();
 		gui.addListener(eventHandler);
-		timer = new Timer(500, new ActionListener() {
-			@Override
-			public void actionPerformed(ActionEvent e) {
+		timer = new Timer(500, e-> {
 				e.setSource(CCActivityClient.this);
-				eventHandler.handleEvent(e);
+				eventHandler.accept(e);
 			}
-		});
+		);
 		Runtime.getRuntime().addShutdownHook(new Thread() {
 			@Override
 			public void run() {
@@ -70,39 +68,42 @@ public class CCActivityClient {
 		return gui;
 	}
 	
-	public void sendToServerDBRequest(String... lines) {
+	public void sendToServerDBRequest(List<String> lines) {
+		sendToServerDBRequest(lines, null);
+	}
+	
+	public void sendToServerDBRequest(List<String> lines, Object caller) {
 		try {
 			PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
 //			out.println("requesting_data_start");
 			for (String s : lines)
 				out.println(s);
-			receiveDBResult();
+			receiveDBResult(caller);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
 	}
 	
-	private void receiveDBResult() {
+	private void receiveDBResult(Object caller) {
 		try {
 			ObjectInputStream objectInputStream = new ObjectInputStream(socket.getInputStream());
 			Object readObject = objectInputStream.readObject();
-			ClientServerDBResult deserializedResult = null;
+			ClientServerResult deserializedResult = null;
 			if (readObject instanceof ClientServerDBResult) {
 				deserializedResult = (ClientServerDBResult)readObject;
 			}
 			else if (readObject instanceof String) {
 				Object obj = JSonParser.revertJSon(((String)readObject).substring(1, ((String)readObject).length()-1));
-				deserializedResult = (ClientServerDBResult)obj;
+				deserializedResult = (ClientServerResult)obj;
 			}
-			
-			decodeServerResponse(deserializedResult);
+			decodeServerResponse(deserializedResult, caller);
 		} catch (Exception ex) {
 			ex.printStackTrace();
 		}
 	}
 	
-	protected void decodeServerResponse(ClientServerDBResult result) {
-		gui.update(result);
+	protected void decodeServerResponse(ClientServerResult result, Object caller) {
+		gui.update(result, caller);
 	}
 	
 	public void disconnect() {

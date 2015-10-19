@@ -13,7 +13,6 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 
-import com.balsick.controllers.EBAction;
 import com.balsick.datastructures.ComponentColors;
 import com.balsick.tools.communication.ColumnStructure;
 import com.balsick.tools.utils.EBColor;
@@ -32,8 +31,7 @@ public class EBTable {
 	
 	public JPanel resetPanel() {
 		panel = null;
-		getPanel();
-		return panel;
+		return getPanel();
 	}
 	
 	public JPanel getPanel() {
@@ -72,12 +70,8 @@ public class EBTable {
 						setForeground(Color.black);
 						setBorder(BorderFactory.createCompoundBorder(BorderFactory.createMatteBorder(0, 1, 0, 1, Color.black), BorderFactory.createEmptyBorder(0, 5, 0, 5)));
 						setOpaque(true);
-						setAction(new EBAction() {
-							@Override
-							public void action() {
-								EBTable.this.setSelectedLine(index);
-							}
-						});
+						setAction(() -> EBTable.this.setSelectedLine(index)
+						);
 					}
 					@Override
 					public void updateColors() {
